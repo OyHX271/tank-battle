@@ -462,24 +462,60 @@ class Game {
     this.allBullets = this.allBullets.filter(b => b.active);
   }
 
+  _isPositionValid(tank, x, y) {
+    const half = tank.size / 2;
+    if (x - half < GRID_OFFSET.X || x + half > GRID_OFFSET.X + GRID_COLS * TILE_SIZE ||
+        y - half < GRID_OFFSET.Y || y + half > GRID_OFFSET.Y + GRID_ROWS * TILE_SIZE) {
+      return false;
+    }
+    if (this.map.collidesWithWall(x - half, y - half, x + half, y + half)) {
+      return false;
+    }
+    return true;
+  }
+
   _checkTankCollisions() {
     const allTanks = [this.player, ...this.enemies].filter(t => t.alive);
 
     for (let i = 0; i < allTanks.length; i++) {
       for (let j = i + 1; j < allTanks.length; j++) {
         if (allTanks[i].collidesWith(allTanks[j])) {
-          // 推开两个坦克
           const a = allTanks[i], b = allTanks[j];
           const dx = b.x - a.x, dy = b.y - a.y;
           const dist = Math.sqrt(dx*dx + dy*dy);
-          if (dist < TANK_SIZE && dist > 0) {
-            const overlap = TANK_SIZE - dist;
-            const nx = dx / dist, ny = dy / dist;
-            a.x -= nx * overlap / 2;
-            a.y -= ny * overlap / 2;
-            b.x += nx * overlap / 2;
-            b.y += ny * overlap / 2;
+          if (dist >= TANK_SIZE || dist <= 0) continue;
+
+          const overlap = TANK_SIZE - dist;
+          const nx = dx / dist, ny = dy / dist;
+
+          // 尝试方案：各推一半
+          const aX = a.x - nx * overlap / 2;
+          const aY = a.y - ny * overlap / 2;
+          const bX = b.x + nx * overlap / 2;
+          const bY = b.y + ny * overlap / 2;
+
+          const aOk = this._isPositionValid(a, aX, aY);
+          const bOk = this._isPositionValid(b, bX, bY);
+
+          if (aOk && bOk) {
+            a.x = aX; a.y = aY;
+            b.x = bX; b.y = bY;
+          } else if (aOk) {
+            // 只推b：把b推到a对面
+            b.x = a.x + nx * TANK_SIZE;
+            b.y = a.y + ny * TANK_SIZE;
+            if (!this._isPositionValid(b, b.x, b.y)) {
+              a.x = aX; a.y = aY; // 至少让a能动
+            }
+          } else if (bOk) {
+            // 只推a：把a推到b对面
+            a.x = b.x - nx * TANK_SIZE;
+            a.y = b.y - ny * TANK_SIZE;
+            if (!this._isPositionValid(a, a.x, a.y)) {
+              b.x = bX; b.y = bY; // 至少让b能动
+            }
           }
+          // 如果都无效，保持原位（由移动逻辑自行解决）
         }
       }
     }
