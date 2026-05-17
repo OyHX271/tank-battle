@@ -580,7 +580,7 @@ class Game {
     ctx.translate(shakeX, shakeY);
 
     // 渲染地图
-    this.map.render(ctx);
+    if (this.map) this.map.render(ctx);
 
     // 渲染道具
     for (const pu of this.powerUps) {
@@ -593,7 +593,7 @@ class Game {
     }
 
     // 渲染玩家
-    this.player.render(ctx);
+    if (this.player) this.player.render(ctx);
 
     // 渲染子弹
     for (const bullet of this.allBullets) {
@@ -640,7 +640,8 @@ class Game {
     const heartsX = infoX + 160;
     ctx.fillStyle = '#ef4444';
     ctx.font = '16px Arial';
-    ctx.fillText('♥ '.repeat(this.player.lives), heartsX, infoY);
+    const lives = this.player ? this.player.lives : 0;
+    ctx.fillText('♥ '.repeat(lives), heartsX, infoY);
 
     // 剩余敌人
     ctx.fillStyle = '#94a3b8';
@@ -656,7 +657,7 @@ class Game {
 
     ctx.fillText('关卡: ' + (this.level + 1), infoX, line2Y);
 
-    const pw = this.player.powerLevel;
+    const pw = this.player ? this.player.powerLevel : 1;
     const powerText = pw === 1 ? '基础' : pw === 2 ? '快速' : '最强';
     ctx.fillText('火力: ' + powerText, infoX + 100, line2Y);
 
