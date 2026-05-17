@@ -240,13 +240,26 @@ class PlayerTank extends Tank {
     if (moving) {
       // 转向时对齐到网格，方便通过狭窄通道
       if (newDir !== this.dir) {
-        const snapX = GRID_OFFSET.X + Math.round((this.x - GRID_OFFSET.X) / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2;
-        const snapY = GRID_OFFSET.Y + Math.round((this.y - GRID_OFFSET.Y) / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2;
-        // 沿垂直于新方向的方向对齐
+        const half = this.size / 2;
+        const minX = GRID_OFFSET.X + half;
+        const maxX = GRID_OFFSET.X + GRID_COLS * TILE_SIZE - half;
+        const minY = GRID_OFFSET.Y + half;
+        const maxY = GRID_OFFSET.Y + GRID_ROWS * TILE_SIZE - half;
+
+        let snapX = GRID_OFFSET.X + Math.round((this.x - GRID_OFFSET.X) / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2;
+        let snapY = GRID_OFFSET.Y + Math.round((this.y - GRID_OFFSET.Y) / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2;
+        snapX = Math.max(minX, Math.min(maxX, snapX));
+        snapY = Math.max(minY, Math.min(maxY, snapY));
+
+        // 沿垂直于新方向的方向对齐，且确保不穿墙
         if (newDir === DIR.UP || newDir === DIR.DOWN) {
-          this.x = snapX;
+          if (!map.collidesWithWall(snapX - half, this.y - half, snapX + half, this.y + half)) {
+            this.x = snapX;
+          }
         } else {
-          this.y = snapY;
+          if (!map.collidesWithWall(this.x - half, snapY - half, this.x + half, snapY + half)) {
+            this.y = snapY;
+          }
         }
       }
 
