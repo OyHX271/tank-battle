@@ -261,19 +261,11 @@ class Game {
     // 更新消息
     if (this.messageTimer > 0) this.messageTimer--;
 
-    // 保存所有坦克的位置（碰撞回退用）
-    const tankPositions = [];
-    if (this.player.alive) {
-      tankPositions.push({ tank: this.player, x: this.player.x, y: this.player.y });
-    }
-    for (const enemy of this.enemies) {
-      if (enemy.alive) {
-        tankPositions.push({ tank: enemy, x: enemy.x, y: enemy.y });
-      }
-    }
+    // 所有坦克列表（碰撞检测用）
+    const allTanks = [this.player, ...this.enemies];
 
     // 更新玩家
-    this.player.update(this.map);
+    this.player.update(this.map, allTanks);
 
     // 玩家射击
     if (KeyInput.shoot && this.player.alive) {
@@ -287,7 +279,7 @@ class Game {
     // 更新敌人
     for (const enemy of this.enemies) {
       if (!enemy.alive) continue;
-      enemy.update(this.player.x, this.player.y, [this.player, ...this.enemies]);
+      enemy.update(this.player.x, this.player.y, allTanks);
 
       // 敌人射击
       if (enemy.shootCooldown === 0 && Math.random() < 0.015) {
@@ -297,9 +289,6 @@ class Game {
         }
       }
     }
-
-    // 坦克碰撞检测：重叠则回退
-    this._resolveTankCollisions(tankPositions);
 
     // 更新子弹 & 碰撞检测
     this._updateBullets();
@@ -473,28 +462,6 @@ class Game {
     this.allBullets = this.allBullets.filter(b => b.active);
   }
 
-  _resolveTankCollisions(savedPositions) {
-    const tanks = [this.player, ...this.enemies].filter(t => t.alive);
-    const prevMap = new Map();
-    for (const entry of savedPositions) {
-      prevMap.set(entry.tank, { x: entry.x, y: entry.y });
-    }
-
-    for (let i = 0; i < tanks.length; i++) {
-      for (let j = i + 1; j < tanks.length; j++) {
-        if (tanks[i].collidesWith(tanks[j])) {
-          // 重叠则各自回退到移动前位置
-          for (const t of [tanks[i], tanks[j]]) {
-            const prev = prevMap.get(t);
-            if (prev) {
-              t.x = prev.x;
-              t.y = prev.y;
-            }
-          }
-        }
-      }
-    }
-  }
 
   _respawnPlayer() {
     // 检查出生点是否被占据

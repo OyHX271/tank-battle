@@ -73,6 +73,20 @@ class Tank {
              a.bottom < b.top || a.top > b.bottom);
   }
 
+  // 检查在(x,y)是否会与别的坦克碰撞
+  collidesWithTanks(x, y, otherTanks) {
+    const half = this.size / 2;
+    for (const other of otherTanks) {
+      if (other === this || !other.alive) continue;
+      const oh = other.size / 2;
+      if (!(x + half <= other.x - oh || x - half >= other.x + oh ||
+            y + half <= other.y - oh || y - half >= other.y + oh)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   takeDamage() {
     this.health--;
     this.flashTimer = 8;
@@ -219,7 +233,7 @@ class PlayerTank extends Tank {
     this.shootDelay = 20;
   }
 
-  update(map) {
+  update(map, otherTanks) {
     if (!this.alive) return;
     this.updateCooldown();
 
@@ -266,19 +280,21 @@ class PlayerTank extends Tank {
       this.dir = newDir;
       const half = this.size / 2;
 
-      // 分轴检测：先试X方向
+      // 分轴检测X：墙壁 + 边界 + 其他坦克
       const dx = this.dir === DIR.RIGHT ? this.speed : this.dir === DIR.LEFT ? -this.speed : 0;
       let testX = this.x + dx;
       if (!map.collidesWithWall(testX - half, this.y - half, testX + half, this.y + half) &&
-          testX - half >= GRID_OFFSET.X && testX + half <= GRID_OFFSET.X + GRID_COLS * TILE_SIZE) {
+          testX - half >= GRID_OFFSET.X && testX + half <= GRID_OFFSET.X + GRID_COLS * TILE_SIZE &&
+          !this.collidesWithTanks(testX, this.y, otherTanks)) {
         this.x = testX;
       }
 
-      // 再试Y方向
+      // 分轴检测Y：墙壁 + 边界 + 其他坦克
       const dy = this.dir === DIR.DOWN ? this.speed : this.dir === DIR.UP ? -this.speed : 0;
       let testY = this.y + dy;
       if (!map.collidesWithWall(this.x - half, testY - half, this.x + half, testY + half) &&
-          testY - half >= GRID_OFFSET.Y && testY + half <= GRID_OFFSET.Y + GRID_ROWS * TILE_SIZE) {
+          testY - half >= GRID_OFFSET.Y && testY + half <= GRID_OFFSET.Y + GRID_ROWS * TILE_SIZE &&
+          !this.collidesWithTanks(this.x, testY, otherTanks)) {
         this.y = testY;
       }
 
@@ -387,14 +403,15 @@ class EnemyTank extends Tank {
       this.dir = Math.floor(Math.random() * 4);
     }
 
-    // 分轴移动
+    // 分轴移动：墙壁 + 边界 + 其他坦克
     const half = this.size / 2;
     let moved = false;
 
     const dx = this.dir === DIR.RIGHT ? this.speed : this.dir === DIR.LEFT ? -this.speed : 0;
     let testX = this.x + dx;
     if (!this.map.collidesWithWall(testX - half, this.y - half, testX + half, this.y + half) &&
-        testX - half >= GRID_OFFSET.X && testX + half <= GRID_OFFSET.X + GRID_COLS * TILE_SIZE) {
+        testX - half >= GRID_OFFSET.X && testX + half <= GRID_OFFSET.X + GRID_COLS * TILE_SIZE &&
+        !this.collidesWithTanks(testX, this.y, allTanks)) {
       this.x = testX;
       moved = true;
     }
@@ -402,7 +419,8 @@ class EnemyTank extends Tank {
     const dy = this.dir === DIR.DOWN ? this.speed : this.dir === DIR.UP ? -this.speed : 0;
     let testY = this.y + dy;
     if (!this.map.collidesWithWall(this.x - half, testY - half, this.x + half, testY + half) &&
-        testY - half >= GRID_OFFSET.Y && testY + half <= GRID_OFFSET.Y + GRID_ROWS * TILE_SIZE) {
+        testY - half >= GRID_OFFSET.Y && testY + half <= GRID_OFFSET.Y + GRID_ROWS * TILE_SIZE &&
+        !this.collidesWithTanks(this.x, testY, allTanks)) {
       this.y = testY;
       moved = true;
     }
