@@ -236,6 +236,21 @@ class Game {
       return;
     }
 
+    // 关卡完成倒计时
+    if (this.state === GAME_STATE.LEVEL_COMPLETE) {
+      this.levelCompleteTimer--;
+      if (this.levelCompleteTimer <= 0) {
+        this.level++;
+        if (this.level >= LEVELS.length) {
+          this.level = 0;
+        }
+        this.state = GAME_STATE.PLAYING;
+        this.loadLevel();
+      }
+      KeyInput.clearJustPressed();
+      return;
+    }
+
     if (this.state !== GAME_STATE.PLAYING) return;
 
     this.frameCount++;
@@ -539,20 +554,8 @@ class Game {
 
   _levelComplete() {
     this.state = GAME_STATE.LEVEL_COMPLETE;
-    this.messageText = '关卡 ' + (this.level + 1) + ' 通过！';
+    this.levelCompleteTimer = 150; // 2.5秒倒计时 (60fps)
     Sound.play('levelup');
-
-    // 延迟进入下一关
-    setTimeout(() => {
-      if (this.state === GAME_STATE.LEVEL_COMPLETE) {
-        this.level++;
-        if (this.level >= LEVELS.length) {
-          this.level = 0; // 循环
-        }
-        this.state = GAME_STATE.PLAYING;
-        this.loadLevel();
-      }
-    }, 2500);
   }
 
   _gameOver() {
@@ -643,10 +646,17 @@ class Game {
     const lives = this.player ? this.player.lives : 0;
     ctx.fillText('♥ '.repeat(lives), heartsX, infoY);
 
-    // 剩余敌人
-    ctx.fillStyle = '#94a3b8';
+    // 剩余敌人（数量少时高亮闪烁）
+    const remaining = this.totalEnemies - this.enemiesKilled;
     ctx.textAlign = 'right';
-    ctx.fillText('剩余敌人: ' + (this.totalEnemies - this.enemiesKilled),
+    if (remaining <= 3 && Math.floor(Date.now() / 400) % 2 === 0) {
+      ctx.fillStyle = '#fbbf24';
+      ctx.font = 'bold 16px "Microsoft YaHei","SimHei",Arial';
+    } else {
+      ctx.fillStyle = remaining <= 5 ? '#f59e0b' : '#94a3b8';
+      ctx.font = 'bold 14px "Microsoft YaHei","SimHei",Arial';
+    }
+    ctx.fillText('剩余敌人: ' + remaining,
       infoX + GRID_COLS * TILE_SIZE, infoY);
 
     // 第二行
@@ -729,13 +739,18 @@ class Game {
   }
 
   _renderLevelComplete(ctx) {
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    ctx.fillRect(0, CANVAS.HEIGHT / 2 - 40, CANVAS.WIDTH, 80);
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, CANVAS.HEIGHT / 2 - 50, CANVAS.WIDTH, 100);
 
     ctx.fillStyle = '#4ade80';
     ctx.font = 'bold 30px "Microsoft YaHei","SimHei",Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('关卡 ' + (this.level + 1) + ' 通过！', CANVAS.WIDTH / 2, CANVAS.HEIGHT / 2 + 5);
+    ctx.fillText('关卡 ' + (this.level + 1) + ' 通过！', CANVAS.WIDTH / 2, CANVAS.HEIGHT / 2 - 5);
+
+    const secs = Math.ceil(this.levelCompleteTimer / 60);
+    ctx.fillStyle = '#fbbf24';
+    ctx.font = '16px "Microsoft YaHei","SimHei",Arial';
+    ctx.fillText(secs + ' 秒后进入下一关...', CANVAS.WIDTH / 2, CANVAS.HEIGHT / 2 + 30);
   }
 
   _renderMessage(ctx) {

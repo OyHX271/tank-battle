@@ -238,19 +238,37 @@ class PlayerTank extends Tank {
     if (KeyInput.right) { newDir = DIR.RIGHT; moving = true; }
 
     if (moving) {
-      this.dir = newDir;
-      const newX = this.x + (this.dir === DIR.RIGHT ? this.speed : this.dir === DIR.LEFT ? -this.speed : 0);
-      const newY = this.y + (this.dir === DIR.DOWN ? this.speed : this.dir === DIR.UP ? -this.speed : 0);
-
-      const half = this.size / 2;
-      if (!map.collidesWithWall(newX - half, newY - half, newX + half, newY + half)) {
-        // 边界检查
-        if (newX - half >= GRID_OFFSET.X && newX + half <= GRID_OFFSET.X + GRID_COLS * TILE_SIZE &&
-            newY - half >= GRID_OFFSET.Y && newY + half <= GRID_OFFSET.Y + GRID_ROWS * TILE_SIZE) {
-          this.x = newX;
-          this.y = newY;
+      // 转向时对齐到网格，方便通过狭窄通道
+      if (newDir !== this.dir) {
+        const snapX = GRID_OFFSET.X + Math.round((this.x - GRID_OFFSET.X) / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2;
+        const snapY = GRID_OFFSET.Y + Math.round((this.y - GRID_OFFSET.Y) / TILE_SIZE) * TILE_SIZE + TILE_SIZE / 2;
+        // 沿垂直于新方向的方向对齐
+        if (newDir === DIR.UP || newDir === DIR.DOWN) {
+          this.x = snapX;
+        } else {
+          this.y = snapY;
         }
       }
+
+      this.dir = newDir;
+      const half = this.size / 2;
+
+      // 分轴检测：先试X方向
+      const dx = this.dir === DIR.RIGHT ? this.speed : this.dir === DIR.LEFT ? -this.speed : 0;
+      let testX = this.x + dx;
+      if (!map.collidesWithWall(testX - half, this.y - half, testX + half, this.y + half) &&
+          testX - half >= GRID_OFFSET.X && testX + half <= GRID_OFFSET.X + GRID_COLS * TILE_SIZE) {
+        this.x = testX;
+      }
+
+      // 再试Y方向
+      const dy = this.dir === DIR.DOWN ? this.speed : this.dir === DIR.UP ? -this.speed : 0;
+      let testY = this.y + dy;
+      if (!map.collidesWithWall(this.x - half, testY - half, this.x + half, testY + half) &&
+          testY - half >= GRID_OFFSET.Y && testY + half <= GRID_OFFSET.Y + GRID_ROWS * TILE_SIZE) {
+        this.y = testY;
+      }
+
       this.moving = true;
     } else {
       this.moving = false;
@@ -356,27 +374,30 @@ class EnemyTank extends Tank {
       this.dir = Math.floor(Math.random() * 4);
     }
 
-    // 移动
-    const newX = this.x + (this.dir === DIR.RIGHT ? this.speed : this.dir === DIR.LEFT ? -this.speed : 0);
-    const newY = this.y + (this.dir === DIR.DOWN ? this.speed : this.dir === DIR.UP ? -this.speed : 0);
+    // 分轴移动
     const half = this.size / 2;
+    let moved = false;
 
-    let blocked = false;
-    if (this.map.collidesWithWall(newX - half, newY - half, newX + half, newY + half)) {
-      blocked = true;
-    }
-    // 边界
-    if (newX - half < GRID_OFFSET.X || newX + half > GRID_OFFSET.X + GRID_COLS * TILE_SIZE ||
-        newY - half < GRID_OFFSET.Y || newY + half > GRID_OFFSET.Y + GRID_ROWS * TILE_SIZE) {
-      blocked = true;
+    const dx = this.dir === DIR.RIGHT ? this.speed : this.dir === DIR.LEFT ? -this.speed : 0;
+    let testX = this.x + dx;
+    if (!this.map.collidesWithWall(testX - half, this.y - half, testX + half, this.y + half) &&
+        testX - half >= GRID_OFFSET.X && testX + half <= GRID_OFFSET.X + GRID_COLS * TILE_SIZE) {
+      this.x = testX;
+      moved = true;
     }
 
-    if (blocked) {
+    const dy = this.dir === DIR.DOWN ? this.speed : this.dir === DIR.UP ? -this.speed : 0;
+    let testY = this.y + dy;
+    if (!this.map.collidesWithWall(this.x - half, testY - half, this.x + half, testY + half) &&
+        testY - half >= GRID_OFFSET.Y && testY + half <= GRID_OFFSET.Y + GRID_ROWS * TILE_SIZE) {
+      this.y = testY;
+      moved = true;
+    }
+
+    if (!moved) {
       this.dir = Math.floor(Math.random() * 4);
       this.aiTimer = 0;
     } else {
-      this.x = newX;
-      this.y = newY;
       this.moving = true;
     }
 
