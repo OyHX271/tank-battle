@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>坦克大战 - Battle City</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="game-wrapper">
+    <div class="game-header">
+      <div class="game-title">坦 克 大 战</div>
+      <div class="game-subtitle">BATTLE CITY</div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="game-footer">
+      <span>WASD / 方向键</span> 移动 &nbsp;|&nbsp;
+      <span>空格 / J</span> 射击 &nbsp;|&nbsp;
+      保卫基地，消灭所有敌人！
+    </div>
+  </div>
+
+  <script src="js/constants.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/game.js"></script>
+  <script>
+    const game = new Game();
+    game.start();
+  </script>
+</body>
+</html>
