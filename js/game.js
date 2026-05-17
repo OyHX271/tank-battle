@@ -261,6 +261,17 @@ class Game {
     // 更新消息
     if (this.messageTimer > 0) this.messageTimer--;
 
+    // 保存所有坦克的位置（碰撞回退用）
+    const tankPositions = [];
+    if (this.player.alive) {
+      tankPositions.push({ tank: this.player, x: this.player.x, y: this.player.y });
+    }
+    for (const enemy of this.enemies) {
+      if (enemy.alive) {
+        tankPositions.push({ tank: enemy, x: enemy.x, y: enemy.y });
+      }
+    }
+
     // 更新玩家
     this.player.update(this.map);
 
@@ -286,6 +297,9 @@ class Game {
         }
       }
     }
+
+    // 坦克碰撞检测：重叠则回退
+    this._resolveTankCollisions(tankPositions);
 
     // 更新子弹 & 碰撞检测
     this._updateBullets();
@@ -340,9 +354,6 @@ class Game {
       this.spawnEnemy();
       this.enemySpawnTimer = 90; // 1.5秒间隔
     }
-
-    // 检测坦克间碰撞
-    this._checkTankCollisions();
 
     // 胜利条件
     if (this.enemiesKilled >= this.totalEnemies && this.enemies.length === 0) {
@@ -462,60 +473,24 @@ class Game {
     this.allBullets = this.allBullets.filter(b => b.active);
   }
 
-  _isPositionValid(tank, x, y) {
-    const half = tank.size / 2;
-    if (x - half < GRID_OFFSET.X || x + half > GRID_OFFSET.X + GRID_COLS * TILE_SIZE ||
-        y - half < GRID_OFFSET.Y || y + half > GRID_OFFSET.Y + GRID_ROWS * TILE_SIZE) {
-      return false;
+  _resolveTankCollisions(savedPositions) {
+    const tanks = [this.player, ...this.enemies].filter(t => t.alive);
+    const prevMap = new Map();
+    for (const entry of savedPositions) {
+      prevMap.set(entry.tank, { x: entry.x, y: entry.y });
     }
-    if (this.map.collidesWithWall(x - half, y - half, x + half, y + half)) {
-      return false;
-    }
-    return true;
-  }
 
-  _checkTankCollisions() {
-    const allTanks = [this.player, ...this.enemies].filter(t => t.alive);
-
-    for (let i = 0; i < allTanks.length; i++) {
-      for (let j = i + 1; j < allTanks.length; j++) {
-        if (allTanks[i].collidesWith(allTanks[j])) {
-          const a = allTanks[i], b = allTanks[j];
-          const dx = b.x - a.x, dy = b.y - a.y;
-          const dist = Math.sqrt(dx*dx + dy*dy);
-          if (dist >= TANK_SIZE || dist <= 0) continue;
-
-          const overlap = TANK_SIZE - dist;
-          const nx = dx / dist, ny = dy / dist;
-
-          // 尝试方案：各推一半
-          const aX = a.x - nx * overlap / 2;
-          const aY = a.y - ny * overlap / 2;
-          const bX = b.x + nx * overlap / 2;
-          const bY = b.y + ny * overlap / 2;
-
-          const aOk = this._isPositionValid(a, aX, aY);
-          const bOk = this._isPositionValid(b, bX, bY);
-
-          if (aOk && bOk) {
-            a.x = aX; a.y = aY;
-            b.x = bX; b.y = bY;
-          } else if (aOk) {
-            // 只推b：把b推到a对面
-            b.x = a.x + nx * TANK_SIZE;
-            b.y = a.y + ny * TANK_SIZE;
-            if (!this._isPositionValid(b, b.x, b.y)) {
-              a.x = aX; a.y = aY; // 至少让a能动
-            }
-          } else if (bOk) {
-            // 只推a：把a推到b对面
-            a.x = b.x - nx * TANK_SIZE;
-            a.y = b.y - ny * TANK_SIZE;
-            if (!this._isPositionValid(a, a.x, a.y)) {
-              b.x = bX; b.y = bY; // 至少让b能动
+    for (let i = 0; i < tanks.length; i++) {
+      for (let j = i + 1; j < tanks.length; j++) {
+        if (tanks[i].collidesWith(tanks[j])) {
+          // 重叠则各自回退到移动前位置
+          for (const t of [tanks[i], tanks[j]]) {
+            const prev = prevMap.get(t);
+            if (prev) {
+              t.x = prev.x;
+              t.y = prev.y;
             }
           }
-          // 如果都无效，保持原位（由移动逻辑自行解决）
         }
       }
     }
